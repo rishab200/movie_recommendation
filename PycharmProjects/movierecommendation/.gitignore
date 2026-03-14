@@ -1,0 +1,8 @@
+similarity.pkl
+.idea/
+*.xml
+*.iml
+__pycache__/
+*.pyc
+venv/
+pyvenv.cfg
