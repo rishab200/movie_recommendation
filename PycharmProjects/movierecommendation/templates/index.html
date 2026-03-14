@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #0f0f0f;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+            width: 600px;
+            padding: 40px;
+            background-color: #1a1a1a;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(229, 9, 20, 0.2);
+             max-width: 90%;
+    overflow: hidden;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #e50914;
+        }
+
+        p.subtitle {
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        .search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+select {
+    flex: 1;
+    padding: 15px 20px;
+    border-radius: 10px;
+    border: 2px solid #333;
+    background-color: #2a2a2a;
+    color: #ffffff;
+    font-size: 1rem;
+    outline: none;
+    transition: border 0.3s;
+    cursor: pointer;
+    width: 100%;
+    /* fixes overflow */
+    min-width: 0;
+}
+
+select:focus {
+    border-color: #e50914;
+}
+
+button {
+    padding: 15px 25px;
+    background-color: #e50914;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+    /* stops button from shrinking */
+    flex-shrink: 0;
+}
+
+        button:hover {
+            background-color: #f40612;
+        }
+
+        #results h2 {
+            margin-bottom: 15px;
+            color: #888;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .movie-card {
+            background-color: #2a2a2a;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s, background 0.2s;
+            cursor: pointer;
+        }
+
+        .movie-card:hover {
+            transform: translateX(5px);
+            background-color: #333;
+        }
+
+        .movie-number {
+            background-color: #e50914;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .movie-title {
+            font-size: 1rem;
+            color: #ffffff;
+        }
+
+        .error {
+            color: #e50914;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            color: #888;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Movie Recommender</h1>
+        <p class="subtitle">Enter a movie name to get similar recommendations</p>
+
+        <div class="search-box">
+            <select id="movie">
+    <option value="">-- Select a Movie --</option>
+    {% for movie in movies %}
+        <option value="{{ movie }}">{{ movie }}</option>
+    {% endfor %}
+</select>
+            <button onclick="recommend()">Search</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function recommend() {
+            const movie = document.getElementById('movie').value
+
+            if (!movie) {
+                document.getElementById('results').innerHTML = '<p class="error">Please enter a movie name!</p>'
+                return
+            }
+
+            document.getElementById('results').innerHTML = '<p class="loading">Loading...</p>'
+
+            try {
+                const response = await fetch(`/recommend?movie=${movie}`)
+                const data = await response.json()
+
+                let html = '<h2>Recommended Movies</h2>'
+                data.results.forEach((movie, index) => {
+                    html += `
+                        <div class="movie-card">
+                            <div class="movie-number">${index + 1}</div>
+                            <div class="movie-title">${movie}</div>
+                        </div>
+                    `
+                })
+
+                document.getElementById('results').innerHTML = html
+
+            } catch (error) {
+                document.getElementById('results').innerHTML = '<p class="error">Movie not found! Please check the name.</p>'
+            }
+        }
+
+        // Allow pressing Enter key to search
+        document.getElementById('movie').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') recommend()
+        })
+    </script>
+</body>
+</html>
