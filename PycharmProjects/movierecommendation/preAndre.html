@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precision & Recall — Interactive Explainer</title>
+<style>
+ @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&fami…);
+
+ *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+ :root {
+ --bg: #0f0f12;
+ --surface: #18181f;
+ --surface2: #22222c;
+ --border: rgba(255,255,255,0.08);
+ --border2: rgba(255,255,255,0.14);
+ --text: #e8e6f0;
+ --muted: #888;
+ --dim: #555;
+
+ --tp: #22c87a;
+ --tp-bg: rgba(34,200,122,0.1);
+ --tp-border: rgba(34,200,122,0.3);
+
+ --fp: #f05a5a;
+ --fp-bg: rgba(240,90,90,0.1);
+ --fp-border: rgba(240,90,90,0.3);
+
+ --fn: #f0a030;
+ --fn-bg: rgba(240,160,48,0.1);
+ --fn-border: rgba(240,160,48,0.3);
+
+ --tn: #6a7080;
+ --tn-bg: rgba(106,112,128,0.1);
+ --tn-border: rgba(106,112,128,0.25);
+
+ --purple: #9d8fff;
+ --purple-bg: rgba(157,143,255,0.1);
+ --orange: #ff7f4e;
+ --orange-bg: rgba(255,127,78,0.1);
+ }
+
+ body {
+ font-family: 'DM Sans', sans-serif;
+ background: var(--bg);
+ color: var(--text);
+ min-height: 100vh;
+ line-height: 1.6;
+ }
+
+/* ── HEADER ── */
+ header {
+ padding: 3rem 2rem 2rem;
+ max-width: 900px;
+ margin: 0 auto;
+ border-bottom: 1px solid var(--border);
+ }
+
+ .eyebrow {
+ font-family: 'DM Mono', monospace;
+ font-size: 11px;
+ letter-spacing: .18em;
+ color: var(--purple);
+ text-transform: uppercase;
+ margin-bottom: 12px;
+ }
+
+ h1 {
+ font-family: 'DM Serif Display', serif;
+ font-size: clamp(2.2rem, 5vw, 3.4rem);
+ line-height: 1.1;
+ color: var(--text);
+ letter-spacing: -0.02em;
+ }
+
+ h1 em {
+ font-style: italic;
+ color: var(--purple);
+ }
+
+ .subtitle {
+ margin-top: 10px;
+ font-size: 15px;
+ color: var(--muted);
+ max-width: 520px;
+ }
+
+/* ── MAIN ── */
+ main {
+ max-width: 900px;
+ margin: 0 auto;
+ padding: 2rem;
+ }
+
+ section { margin-bottom: 3rem; }
+
+ .section-label {
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ letter-spacing: .18em;
+ color: var(--dim);
+ text-transform: uppercase;
+ margin-bottom: 16px;
+ }
+
+/* ── ANALOGY CARD ── */
+ .analogy {
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 16px;
+ padding: 24px;
+ display: flex;
+ gap: 20px;
+ align-items: flex-start;
+ }
+
+ .analogy-icon {
+ font-size: 32px;
+ flex-shrink: 0;
+ margin-top: 2px;
+ }
+
+ .analogy h3 {
+ font-family: 'DM Serif Display', serif;
+ font-size: 18px;
+ margin-bottom: 6px;
+ }
+
+ .analogy p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+/* ── CONFUSION MATRIX GRID ── */
+ .matrix-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 12px;
+ }
+
+ .matrix-cell {
+ border-radius: 14px;
+ padding: 20px;
+ border: 1px solid var(--border);
+ position: relative;
+ overflow: hidden;
+ transition: border-color .2s;
+ }
+
+ .matrix-cell:hover { border-color: var(--border2); }
+
+ .matrix-cell.tp { background: var(--tp-bg); border-color: var(--tp-border); }
+ .matrix-cell.fp { background: var(--fp-bg); border-color: var(--fp-border); }
+ .matrix-cell.fn { background: var(--fn-bg); border-color: var(--fn-border); }
+ .matrix-cell.tn { background: var(--tn-bg); border-color: var(--tn-border); }
+
+ .cell-tag {
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ letter-spacing: .12em;
+ text-transform: uppercase;
+ margin-bottom: 4px;
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ }
+
+ .cell-tag.tp { color: var(--tp); }
+ .cell-tag.fp { color: var(--fp); }
+ .cell-tag.fn { color: var(--fn); }
+ .cell-tag.tn { color: var(--tn); }
+
+ .cell-count {
+ font-family: 'DM Serif Display', serif;
+ font-size: 36px;
+ line-height: 1;
+ margin-bottom: 8px;
+ }
+
+ .cell-count.tp { color: var(--tp); }
+ .cell-count.fp { color: var(--fp); }
+ .cell-count.fn { color: var(--fn); }
+ .cell-count.tn { color: var(--tn); }
+
+ .cell-desc {
+ font-size: 12px;
+ color: var(--muted);
+ line-height: 1.5;
+ }
+
+ .cell-dots {
+ display: flex;
+ gap: 4px;
+ flex-wrap: wrap;
+ margin-top: 10px;
+ }
+
+ .dot {
+ width: 10px; height: 10px;
+ border-radius: 50%;
+ transition: transform .15s;
+ }
+
+ .dot:hover { transform: scale(1.4); }
+
+/* ── SLIDERS ── */
+ .slider-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 16px;
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 16px;
+ padding: 20px;
+ margin-bottom: 20px;
+ }
+
+ .slider-row label {
+ display: flex;
+ justify-content: space-between;
+ font-size: 13px;
+ color: var(--muted);
+ margin-bottom: 6px;
+ }
+
+ .slider-row label span {
+ font-family: 'DM Mono', monospace;
+ font-size: 12px;
+ color: var(--text);
+ }
+
+ input[type=range] {
+ width: 100%;
+ -webkit-appearance: none;
+ height: 4px;
+ border-radius: 2px;
+ outline: none;
+ cursor: pointer;
+ }
+
+ input[type=range]::-webkit-slider-thumb {
+ -webkit-appearance: none;
+ width: 16px; height: 16px;
+ border-radius: 50%;
+ cursor: pointer;
+ border: 2px solid var(--bg);
+ transition: transform .15s;
+ }
+
+ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+ #sl-tp { background: linear-gradient(to right, var(--tp) 0%, var(--tp) 50%, #333 50%); }
+ #sl-tp::-webkit-slider-thumb { background: var(--tp); }
+ #sl-fp { background: linear-gradient(to right, var(--fp) 0%, var(--fp) 20%, #333 20%); }
+ #sl-fp::-webkit-slider-thumb { background: var(--fp); }
+ #sl-fn { background: linear-gradient(to right, var(--fn) 0%, var(--fn) 30%, #333 30%); }
+ #sl-fn::-webkit-slider-thumb { background: var(--fn); }
+ #sl-tn { background: linear-gradient(to right, var(--tn) 0%, var(--tn) 50%, #333 50%); }
+ #sl-tn::-webkit-slider-thumb { background: var(--tn); }
+
+/* ── METRICS ── */
+ .metrics-row {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 12px;
+ margin-bottom: 12px;
+ }
+
+ .metric-card {
+ border-radius: 14px;
+ padding: 20px;
+ border: 1px solid var(--border);
+ }
+
+ .metric-card.precision { background: var(--purple-bg); border-color: rgba(157,143,255,0.25); }
+ .metric-card.recall { background: var(--orange-bg); border-color: rgba(255,127,78,0.25); }
+
+ .metric-label {
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ letter-spacing: .15em;
+ text-transform: uppercase;
+ margin-bottom: 4px;
+ }
+
+ .metric-card.precision .metric-label { color: var(--purple); }
+ .metric-card.recall .metric-label { color: var(--orange); }
+
+ .metric-formula {
+ font-family: 'DM Mono', monospace;
+ font-size: 11px;
+ color: var(--dim);
+ margin-bottom: 10px;
+ }
+
+ .metric-value {
+ font-family: 'DM Serif Display', serif;
+ font-size: 42px;
+ line-height: 1;
+ margin-bottom: 10px;
+ }
+
+ .metric-card.precision .metric-value { color: var(--purple); }
+ .metric-card.recall .metric-value { color: var(--orange); }
+
+ .metric-bar-track {
+ height: 6px;
+ background: rgba(255,255,255,0.08);
+ border-radius: 3px;
+ overflow: hidden;
+ margin-bottom: 10px;
+ }
+
+ .metric-bar-fill {
+ height: 100%;
+ border-radius: 3px;
+ transition: width .5s cubic-bezier(.4,0,.2,1);
+ }
+
+ .metric-card.precision .metric-bar-fill { background: var(--purple); }
+ .metric-card.recall .metric-bar-fill { background: var(--orange); }
+
+ .metric-note {
+ font-size: 12px;
+ color: var(--muted);
+ line-height: 1.5;
+ }
+
+/* ── F1 ── */
+ .f1-row {
+ display: flex;
+ align-items: center;
+ gap: 20px;
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 14px;
+ padding: 18px 24px;
+ margin-bottom: 20px;
+ }
+
+ .f1-label {
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ letter-spacing: .15em;
+ color: var(--dim);
+ text-transform: uppercase;
+ margin-bottom: 2px;
+ }
+
+ .f1-formula {
+ font-family: 'DM Mono', monospace;
+ font-size: 11px;
+ color: var(--dim);
+ }
+
+ .f1-value {
+ font-family: 'DM Serif Display', serif;
+ font-size: 38px;
+ color: var(--text);
+ margin-left: auto;
+ min-width: 80px;
+ text-align: right;
+ }
+
+ .f1-bar-track {
+ flex: 1;
+ height: 6px;
+ background: rgba(255,255,255,0.08);
+ border-radius: 3px;
+ overflow: hidden;
+ }
+
+ .f1-bar-fill {
+ height: 100%;
+ border-radius: 3px;
+ background: linear-gradient(to right, var(--purple), var(--orange));
+ transition: width .5s cubic-bezier(.4,0,.2,1);
+ }
+
+/* ── NUMBER LINE ── */
+ .number-line-track {
+ height: 44px;
+ border-radius: 10px;
+ overflow: hidden;
+ display: flex;
+ position: relative;
+ background: var(--surface2);
+ }
+
+ .nl-seg {
+ height: 100%;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-size: 11px;
+ font-weight: 500;
+ color: #fff;
+ transition: width .5s cubic-bezier(.4,0,.2,1), flex .5s;
+ white-space: nowrap;
+ overflow: hidden;
+ }
+
+ .nl-labels {
+ display: flex;
+ justify-content: space-between;
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ color: var(--dim);
+ margin-top: 6px;
+ }
+
+/* ── INSIGHT ── */
+ .insight {
+ border-left: 3px solid var(--purple);
+ padding: 12px 16px;
+ background: var(--surface);
+ border-radius: 0 10px 10px 0;
+ font-size: 13px;
+ color: var(--muted);
+ line-height: 1.6;
+ margin-top: 12px;
+ transition: all .3s;
+ }
+
+/* ── TRADEOFF SECTION ── */
+ .tradeoff-cards {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 12px;
+ }
+
+ .tradeoff-card {
+ background: var(--surface);
+ border: 1px solid var(--border);
+ border-radius: 14px;
+ padding: 18px;
+ }
+
+ .tradeoff-card h4 {
+ font-family: 'DM Serif Display', serif;
+ font-size: 16px;
+ margin-bottom: 6px;
+ }
+
+ .tradeoff-card p {
+ font-size: 12px;
+ color: var(--muted);
+ line-height: 1.6;
+ }
+
+ .tag {
+ display: inline-block;
+ font-family: 'DM Mono', monospace;
+ font-size: 10px;
+ padding: 2px 8px;
+ border-radius: 20px;
+ margin-bottom: 8px;
+ }
+
+ .tag.precision { background: var(--purple-bg); color: var(--purple); }
+ .tag.recall { background: var(--orange-bg); color: var(--orange); }
+ .tag.both { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+/* ── FOOTER ── */
+ footer {
+ max-width: 900px;
+ margin: 0 auto;
+ padding: 1.5rem 2rem 3rem;
+ border-top: 1px solid var(--border);
+ font-size: 12px;
+ color: var(--dim);
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: 8px;
+ }
+
+ @keyframes popIn {
+ from { transform: scale(0); opacity: 0; }
+ to { transform: scale(1); opacity: 1; }
+ }
+
+ .dot-anim { animation: popIn .25s ease both; }
+
+ @media (max-width: 600px) {
+ .matrix-grid, .metrics-row, .tradeoff-cards, .slider-grid { grid-template-columns: 1fr; }
+ h1 { font-size: 2rem; }
+ }
+</style>
+</head>
+<body>
+
+<header>
+ <div class="eyebrow">Machine Learning — Classification Metrics</div>
+ <h1>Precision &amp; <em>Recall</em></h1>
+ <p class="subtitle">An interactive guide to understanding two of the most important metrics in classification — and why they trade off against each other.</p>
+</header>
+
+<main>
+
+<!-- ANALOGY -->
+ <section>
+ <div class="section-label">The Intuition</div>
+ <div class="analogy">
+ <div class="analogy-icon">📧</div>
+ <div>
+ <h3>Imagine a Spam Filter</h3>
+ <p>Your email filter decides which messages are "spam" and which are "not spam." Every decision it makes falls into one of four buckets — and Precision &amp; Recall measure two very different aspects of how well it's doing its job.</p>
+ </div>
+ </div>
+ </section>
+
+<!-- CONFUSION MATRIX -->
+ <section>
+ <div class="section-label">The Four Outcomes — adjust the sliders below</div>
+
+ <div class="matrix-grid" style="margin-bottom:16px;">
+ <div class="matrix-cell tp">
+ <div class="cell-tag tp">✓ True Positive (TP)</div>
+ <div class="cell-count tp" id="tp-val">5</div>
+ <div class="cell-desc">Was spam → Filter said spam ✓<br>Correct catch!</div>
+ <div class="cell-dots" id="tp-dots"></div>
+ </div>
+ <div class="matrix-cell fp">
+ <div class="cell-tag fp">✗ False Positive (FP)</div>
+ <div class="cell-count fp" id="fp-val">2</div>
+ <div class="cell-desc">Was real email → Filter said spam ✗<br>Innocent email flagged!</div>
+ <div class="cell-dots" id="fp-dots"></div>
+ </div>
+ <div class="matrix-cell fn">
+ <div class="cell-tag fn">✗ False Negative (FN)</div>
+ <div class="cell-count fn" id="fn-val">3</div>
+ <div class="cell-desc">Was spam → Filter missed it ✗<br>Spam slipped through!</div>
+ <div class="cell-dots" id="fn-dots"></div>
+ </div>
+ <div class="matrix-cell tn">
+ <div class="cell-tag tn">✓ True Negative (TN)</div>
+ <div class="cell-count tn" id="tn-val">10</div>
+ <div class="cell-desc">Was real email → Filter said real ✓<br>Correctly left alone.</div>
+ </div>
+ </div>
+
+ <div class="slider-grid">
+ <div class="slider-row">
+ <label>TP (correctly caught spam) <span id="sl-tp-out">5</span></label>
+ <input type="range" min="1" max="10" step="1" value="5" id="sl-tp">
+ </div>
+ <div class="slider-row">
+ <label>FP (real email flagged as spam) <span id="sl-fp-out">2</span></label>
+ <input type="range" min="0" max="10" step="1" value="2" id="sl-fp">
+ </div>
+ <div class="slider-row">
+ <label>FN (spam that slipped through) <span id="sl-fn-out">3</span></label>
+ <input type="range" min="0" max="10" step="1" value="3" id="sl-fn">
+ </div>
+ <div class="slider-row">
+ <label>TN (real emails left alone) <span id="sl-tn-out">10</span></label>
+ <input type="range" min="1" max="20" step="1" value="10" id="sl-tn">
+ </div>
+ </div>
+ </section>
+
+<!-- METRICS -->
+ <section>
+ <div class="section-label">The Metrics</div>
+
+ <div class="metrics-row">
+ <div class="metric-card precision">
+ <div class="metric-label">Precision</div>
+ <div class="metric-formula">TP / (TP + FP)</div>
+ <div class="metric-value" id="precision-val">71%</div>
+ <div class="metric-bar-track">
+ <div class="metric-bar-fill" id="precision-bar" style="width:71%"></div>
+ </div>
+ <div class="metric-note">Of everything the filter called "spam" — how much was <em>actually</em> spam?<br><br>High precision = very few innocent emails get flagged.</div>
+ </div>
+
+ <div class="metric-card recall">
+ <div class="metric-label">Recall</div>
+ <div class="metric-formula">TP / (TP + FN)</div>
+ <div class="metric-value" id="recall-val">63%</div>
+ <div class="metric-bar-track">
+ <div class="metric-bar-fill" id="recall-bar" style="width:63%"></div>
+ </div>
+ <div class="metric-note">Of all the actual spam that existed — how much did the filter <em>catch</em>?<br><br>High recall = very few spam messages slip through.</div>
+ </div>
+ </div>
+
+ <div class="f1-row">
+ <div>
+ <div class="f1-label">F1 Score — balanced average</div>
+ <div class="f1-formula">2 × Precision × Recall / (Precision + Recall)</div>
+ </div>
+ <div class="f1-bar-track">
+ <div class="f1-bar-fill" id="f1-bar" style="width:67%"></div>
+ </div>
+ <div class="f1-value" id="f1-val">67%</div>
+ </div>
+
+<!-- NUMBER LINE -->
+ <div class="section-label" style="margin-top:8px;">Probability space — how the filter divides all emails</div>
+ <div class="number-line-track" id="number-line">
+ <div class="nl-seg" id="nl-tp" style="background:#22c87a; width:25%;">Spam ✓</div>
+ <div class="nl-seg" id="nl-fp" style="background:#f05a5a; width:10%;">False alarm</div>
+ <div class="nl-seg" id="nl-fn" style="background:#f0a030; width:15%;">Missed spam</div>
+ <div class="nl-seg" id="nl-tn" style="background:#444; width:50%;">Real email ✓</div>
+ </div>
+ <div class="nl-labels">
+ <span>← spam folder</span>
+ <span>inbox →</span>
+ </div>
+
+ <div class="insight" id="insight-box">
+ Adjust the sliders above to see how each value affects Precision and Recall.
+ </div>
+ </section>
+
+<!-- TRADEOFF -->
+ <section>
+ <div class="section-label">The Tradeoff — when each matters</div>
+ <div class="tradeoff-cards">
+ <div class="tradeoff-card">
+ <div class="tag recall">High Recall Priority</div>
+ <h4>Cancer Detection</h4>
+ <p>Never miss a real cancer case, even if it means some false alarms. Missing a true positive (FN) is catastrophic. False alarms can be investigated further.</p>
+ </div>
+ <div class="tradeoff-card">
+ <div class="tag precision">High Precision Priority</div>
+ <h4>Spam Filter</h4>
+ <p>Better to let some spam through than to block an important email. A false positive (FP) costs more than a false negative here.</p>
+ </div>
+ <div class="tradeoff-card">
+ <div class="tag both">Balance Both</div>
+ <h4>Search Engine</h4>
+ <p>Results should be relevant (precision) but also complete (recall). Use the F1 score when neither metric can dominate.</p>
+ </div>
+ <div class="tradeoff-card">
+ <div class="tag recall">High Recall Priority</div>
+ <h4>Fraud Detection</h4>
+ <p>Catch as much fraud as possible. A missed fraud case costs more than reviewing a false alarm. Recall takes priority here.</p>
+ </div>
+ </div>
+ </section>
+
+<!-- ONE LINE SUMMARY -->
+ <section>
+ <div class="section-label">One-line summary</div>
+ <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+ <div style="background:var(--purple-bg); border:1px solid rgba(157,143,255,0.2); border-radius:12px; padding:16px;">
+ <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--purple); margin-bottom:6px;">PRECISION</div>
+ <div style="font-size:14px; color:var(--text); line-height:1.6;">"When I say it's spam — am I right?"</div>
+ </div>
+ <div style="background:var(--orange-bg); border:1px solid rgba(255,127,78,0.2); border-radius:12px; padding:16px;">
+ <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--orange); margin-bottom:6px;">RECALL</div>
+ <div style="font-size:14px; color:var(--text); line-height:1.6;">"Of all actual spam — how much did I catch?"</div>
+ </div>
+ </div>
+ </section>
+
+</main>
+
+<footer>
+ <span>Precision &amp; Recall — Interactive Explainer</span>
+ <span style="font-family:'DM Mono',monospace;">ML Classification Metrics</span>
+</footer>
+
+<script>
+ function makeDots(id, count, color) {
+ const el = document.getElementById(id);
+ el.innerHTML = '';
+ for (let i = 0; i < Math.min(count, 10); i++) {
+ const d = document.createElement('span');
+ d.className = 'dot dot-anim';
+ d.style.background = color;
+ d.style.animationDelay = (i * 40) + 'ms';
+ el.appendChild(d);
+ }
+ }
+
+ function updateSliderTrack(id, value, min, max, color) {
+ const pct = ((value - min) / (max - min) * 100).toFixed(1);
+ document.getElementById(id).style.background =
+ `linear-gradient(to right, ${color} 0%, ${color} ${pct}%, #333 ${pct}%)`;
+ }
+
+ function render() {
+ const tp = parseInt(document.getElementById('sl-tp').value);
+ const fp = parseInt(document.getElementById('sl-fp').value);
+ const fn = parseInt(document.getElementById('sl-fn').value);
+ const tn = parseInt(document.getElementById('sl-tn').value);
+
+ document.getElementById('sl-tp-out').textContent = tp;
+ document.getElementById('sl-fp-out').textContent = fp;
+ document.getElementById('sl-fn-out').textContent = fn;
+ document.getElementById('sl-tn-out').textContent = tn;
+
+ updateSliderTrack('sl-tp', tp, 1, 10, 'var(--tp)');
+ updateSliderTrack('sl-fp', fp, 0, 10, 'var(--fp)');
+ updateSliderTrack('sl-fn', fn, 0, 10, 'var(--fn)');
+ updateSliderTrack('sl-tn', tn, 1, 20, 'var(--tn)');
+
+ document.getElementById('tp-val').textContent = tp;
+ document.getElementById('fp-val').textContent = fp;
+ document.getElementById('fn-val').textContent = fn;
+ document.getElementById('tn-val').textContent = tn;
+
+ makeDots('tp-dots', tp, 'var(--tp)');
+ makeDots('fp-dots', fp, 'var(--fp)');
+ makeDots('fn-dots', fn, 'var(--fn)');
+
+ const precision = tp / (tp + fp);
+ const recall = tp / (tp + fn);
+ const f1 = (2 * precision * recall) / (precision + recall) || 0;
+
+ const pPct = Math.round(precision * 100);
+ const rPct = Math.round(recall * 100);
+ const fPct = Math.round(f1 * 100);
+
+ document.getElementById('precision-val').textContent = pPct + '%';
+ document.getElementById('recall-val').textContent = rPct + '%';
+ document.getElementById('f1-val').textContent = fPct + '%';
+
+ document.getElementById('precision-bar').style.width = pPct + '%';
+ document.getElementById('recall-bar').style.width = rPct + '%';
+ document.getElementById('f1-bar').style.width = fPct + '%';
+
+ const total = tp + fp + fn + tn;
+ 
+document.getElementById('nl-tp').style.width = ((tp/total)*100).toFixed(1) + '%';
+ document.getElementById('nl-fp').style.width = ((fp/total)*100).toFixed(1) + '%';
+ document.getElementById('nl-fn').style.width = ((fn/total)*100).toFixed(1) + '%';
+ document.getElementById('nl-tn').style.width = ((tn/total)*100).toFixed(1) + '%';
+
+ document.getElementById('nl-tp').textContent = tp > 0 ? 'Spam ✓' : '';
+ document.getElementById('nl-fp').textContent = fp > 0 ? 'False alarm' : '';
+ document.getElementById('nl-fn').textContent = fn > 0 ? 'Missed' : '';
+ document.getElementById('nl-tn').textContent = 'Real email ✓';
+
+ let insight = '';
+ if (pPct > 85 && rPct < 50) {
+ insight = '⚠ High Precision, Low Recall — the filter is very strict. It rarely cries wolf, but a lot of spam is slipping through into your inbox.';
+ } else if (rPct > 85 && pPct < 50) {
+ insight = '⚠ High Recall, Low Precision — the filter is very aggressive. It catches almost all spam, but it\'s also trapping many legitimate emails!';
+ } else if (pPct > 80 && rPct > 80) {
+ insight = '✓ Great balance! Both Precision and Recall are high. The filter is catching most spam without harming legitimate emails.';
+ } else if (pPct < 50 && rPct < 50) {
+ insight = '✗ Both metrics are low. The filter is making a lot of mistakes in both directions. Something needs significant improvement.';
+ } else {
+ insight = `Precision ${pPct}% — Recall ${rPct}%. Increase TP or reduce FP to boost Precision. Increase TP or reduce FN to boost Recall. Improving both at once is the core challenge.`;
+ }
+
+ document.getElementById('insight-box').textContent = insight;
+ }
+
+ ['sl-tp','sl-fp','sl-fn','sl-tn'].forEach(id => {
+ document.getElementById(id).addEventListener('input', render);
+ });
+
+ render();
+</script>
+
+</body>
+</html>
